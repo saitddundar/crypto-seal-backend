@@ -1,0 +1,5 @@
+# TODO: Tüm servisleri başlatan Docker Compose dosyası
+version: '3.8'
+
+services:
+  # hasher-service ve notary-service buraya eklenecek
