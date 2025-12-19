@@ -46,6 +46,18 @@ type VerifyResponse struct {
 	Record  *SealRecord `json:"record,omitempty"`
 }
 
+// ResolveRequest - Resolve request by hash
+type ResolveRequest struct {
+	Hash string `json:"hash"`
+}
+
+// ResolveResponse - Resolve response
+type ResolveResponse struct {
+	Found   bool        `json:"found"`
+	Message string      `json:"message"`
+	Record  *SealRecord `json:"record,omitempty"`
+}
+
 // ErrorResponse - Error response
 type ErrorResponse struct {
 	Error string `json:"error"`
@@ -281,16 +293,69 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// resolveHandler - Finds stored seal by hash
+func resolveHandler(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w)
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Only POST method is allowed"})
+		return
+	}
+
+	var req ResolveRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid JSON body"})
+		return
+	}
+
+	if req.Hash == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Hash field is required"})
+		return
+	}
+
+	// Search in store by hash
+	store.mu.RLock()
+	record, exists := store.records[req.Hash]
+	store.mu.RUnlock()
+
+	if exists {
+		log.Printf("🔍 Resolve successful: %s", record.ID)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(ResolveResponse{
+			Found:   true,
+			Message: "Seal record found!",
+			Record:  record,
+		})
+	} else {
+		log.Printf("❌ Resolve failed: hash not found")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(ResolveResponse{
+			Found:   false,
+			Message: "No seal record found for this hash.",
+			Record:  nil,
+		})
+	}
+}
+
 func main() {
 	// Routes
 	http.HandleFunc("/seal", sealHandler)
 	http.HandleFunc("/verify", verifyHandler)
+	http.HandleFunc("/resolve", resolveHandler)
 	http.HandleFunc("/list", listHandler)
 	http.HandleFunc("/health", healthHandler)
 
 	port := ":8082"
 	log.Printf("📜 Notary Service starting on port %s", port)
-	log.Printf("📍 Endpoints: POST /seal, POST /verify, GET /list, GET /health")
+	log.Printf("📍 Endpoints: POST /seal, POST /verify, POST /resolve, GET /list, GET /health")
 	log.Printf("🔗 Hasher Service: %s", getHasherServiceURL())
 
 	if err := http.ListenAndServe(port, nil); err != nil {
