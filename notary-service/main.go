@@ -13,20 +13,20 @@ import (
 
 // ==================== MODELS ====================
 
-// SealRecord - Kayıtlı mühür bilgisi
+// SealRecord - Stored seal record information
 type SealRecord struct {
 	ID        string    `json:"id"`
 	Hash      string    `json:"hash"`
 	Timestamp time.Time `json:"timestamp"`
-	Text      string    `json:"text,omitempty"` // Opsiyonel: orijinal metin
+	Text      string    `json:"text,omitempty"` // Optional: original text
 }
 
-// SealRequest - Frontend'den gelen mühür isteği
+// SealRequest - Seal request from frontend
 type SealRequest struct {
 	Text string `json:"text"`
 }
 
-// SealResponse - Mühür oluşturma cevabı
+// SealResponse - Seal creation response
 type SealResponse struct {
 	ID        string    `json:"id"`
 	Hash      string    `json:"hash"`
@@ -34,19 +34,19 @@ type SealResponse struct {
 	Message   string    `json:"message"`
 }
 
-// VerifyRequest - Doğrulama isteği
+// VerifyRequest - Verification request
 type VerifyRequest struct {
 	Text string `json:"text"`
 }
 
-// VerifyResponse - Doğrulama cevabı
+// VerifyResponse - Verification response
 type VerifyResponse struct {
 	Valid   bool        `json:"valid"`
 	Message string      `json:"message"`
 	Record  *SealRecord `json:"record,omitempty"`
 }
 
-// ErrorResponse - Hata cevabı
+// ErrorResponse - Error response
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
@@ -66,7 +66,7 @@ var store = &Store{
 
 // ==================== HASHER SERVICE CLIENT ====================
 
-// getHasherServiceURL - Hasher service URL'ini environment'dan alır
+// getHasherServiceURL - Gets hasher service URL from environment
 func getHasherServiceURL() string {
 	url := os.Getenv("HASHER_SERVICE_URL")
 	if url == "" {
@@ -75,17 +75,17 @@ func getHasherServiceURL() string {
 	return url
 }
 
-// HashRequest - Hasher service'e gönderilen istek
+// HashRequest - Request sent to hasher service
 type HashRequest struct {
 	Text string `json:"text"`
 }
 
-// HashResponse - Hasher service'den gelen cevap
+// HashResponse - Response from hasher service
 type HashResponse struct {
 	Hash string `json:"hash"`
 }
 
-// getHashFromService - Hasher service'den hash alır
+// getHashFromService - Gets hash from hasher service
 func getHashFromService(text string) (string, error) {
 	reqBody, _ := json.Marshal(HashRequest{Text: text})
 
@@ -109,7 +109,7 @@ func getHashFromService(text string) (string, error) {
 
 // ==================== HANDLERS ====================
 
-// setCORSHeaders - CORS header'larını ekler
+// setCORSHeaders - Sets CORS headers
 func setCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -117,7 +117,7 @@ func setCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 }
 
-// sealHandler - Metin alır, hash'ler ve kaydeder
+// sealHandler - Receives text, hashes it and saves
 func sealHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
 
@@ -145,7 +145,7 @@ func sealHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hasher service'den hash al
+	// Get hash from hasher service
 	hash, err := getHashFromService(req.Text)
 	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -153,7 +153,7 @@ func sealHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// In-memory kaydet
+	// Save to in-memory store
 	store.mu.Lock()
 	store.counter++
 	record := &SealRecord{
@@ -176,7 +176,7 @@ func sealHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// verifyHandler - Hash doğrulama yapar
+// verifyHandler - Performs hash verification
 func verifyHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
 
@@ -204,7 +204,7 @@ func verifyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hasher service'den hash al
+	// Get hash from hasher service
 	hash, err := getHashFromService(req.Text)
 	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -212,7 +212,7 @@ func verifyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Store'da ara
+	// Search in store
 	store.mu.RLock()
 	record, exists := store.records[hash]
 	store.mu.RUnlock()
@@ -236,7 +236,7 @@ func verifyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// listHandler - Tüm kayıtlı seal'ları listeler
+// listHandler - Lists all stored seals
 func listHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
 
@@ -254,7 +254,7 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 	store.mu.RLock()
 	records := make([]*SealRecord, 0, len(store.records))
 	for _, record := range store.records {
-		// Text'i gizle (güvenlik için)
+		// Hide text for security
 		recordCopy := &SealRecord{
 			ID:        record.ID,
 			Hash:      record.Hash,
@@ -271,7 +271,7 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// healthHandler - Servis sağlık kontrolü
+// healthHandler - Service health check
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w)
 	w.WriteHeader(http.StatusOK)
