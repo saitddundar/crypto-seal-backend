@@ -1,5 +1,37 @@
-# TODO: Tüm servisleri başlatan Docker Compose dosyası
 version: '3.8'
 
 services:
-  # hasher-service ve notary-service buraya eklenecek
+  hasher-service:
+    build:
+      context: ./hasher-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  notary-service:
+    build:
+      context: ./notary-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - HASHER_SERVICE_URL=http://hasher-service:8081/hash
+    depends_on:
+      hasher-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8082/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  default:
+    name: crypto-seal-network
