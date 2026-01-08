@@ -354,9 +354,9 @@ func main() {
 	http.HandleFunc("/health", healthHandler)
 
 	port := ":8082"
-	log.Printf("📜 Notary Service starting on port %s", port)
-	log.Printf("📍 Endpoints: POST /seal, POST /verify, POST /resolve, GET /list, GET /health")
-	log.Printf("🔗 Hasher Service: %s", getHasherServiceURL())
+	log.Printf("- Notary Service starting on port %s", port)
+	log.Printf("- Endpoints: POST /seal, POST /verify, POST /resolve, GET /list, GET /health")
+	log.Printf("- Hasher Service: %s", getHasherServiceURL())
 
 	if err := http.ListenAndServe(port, nil); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
